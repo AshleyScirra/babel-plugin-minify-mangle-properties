@@ -1,0 +1,14 @@
+{
+  "name": "babel-plugin-minify-mangle-properties",
+  "version": "0.0.1",
+  "description": "",
+  "homepage": "https://github.com/babel/babili#readme",
+  "author": "AshleyScirra",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "keywords": [
+    "babel-plugin"
+  ],
+  "dependencies": {},
+  "devDependencies": {}
+}
