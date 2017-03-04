@@ -9,10 +9,9 @@ let globalNameCache = {
 };
 
 // Mangled identifiers must begin with one of FIRST_CHARS, then any later chars can be any of NEXT_CHARS.
-// By making all mangled identifiers start with an uppercase character, and assuming the name mangler uses
-// a lowercase first character, we guarantee that mangled global variable references never collide with locals.
-const FIRST_CHARS = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
+const FIRST_CHARS = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"];
 const NEXT_CHARS = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"];
+let identifierPrefix = "";
 
 // Generate a new identifier from the given seed (which increments every time we want a new identifier).
 function generateIdentifierFromSeed(s)
@@ -29,7 +28,7 @@ function generateIdentifierFromSeed(s)
 		s = Math.floor((s - (s2 + 1)) / NEXT_CHARS.length);
 	}
 	
-	return ret;
+	return identifierPrefix + ret;
 };
 
 // Generate a mangled name. In debug mode this returns a string of the form: _$name$suffix_
@@ -109,6 +108,7 @@ module.exports = function (_ref)
 				this.alreadyMangledNodes.clear();
 				this.reservedNames = new Set(state.opts.reservedNames || []);
 				this.isDebugMode = !!state.opts.debug;
+				identifierPrefix = state.opts.identifierPrefix || "";
 				
 				if (this.isDebugMode)
 					this.debugSuffix = state.opts.debugSuffix || "";
