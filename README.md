@@ -1,6 +1,8 @@
 # babel-plugin-minify-mangle-properties
 
-Mangle class/object property/method names, as well as global references. This can achieve significantly better minification, especially on large scripts, and is an extra impediment to reverse-engineering code. However it can break code that is not specially written to account for the mangling process; this is described in more detail below.
+Mangle class/object property/method names, as well as global references. The process is designed to match Google Closure Compiler's advanced optimizations mode. This can achieve significantly better minification, especially on large scripts, and is an extra impediment to reverse-engineering code. However it can break code that is not specially written to account for the mangling process; this is described in more detail below.
+
+This plugin is a work in progress. In particular some limitations in the architecture of Babel make it difficult to simply include in your list of plugins to run. See below for more information.
 
 ### Basic functionality
 ```
@@ -33,7 +35,7 @@ class C {
 new C().A();
 ```
 
-Referencing external libraries which the mangler doesn't see can cause errors if the library names are mangled (e.g. `mylibrary.apiCall()` turning in to `mylibrary.A()`. To avoid mangling those names, you can pass a list of names to not mangle in the `reservedNames` plugin option. Alternatively computed or string syntax property accesses are never mangled, e.g. using `mylibrary["apiCall"]()` will not mangle `"apiCall"` and continue to work.
+Referencing external libraries which the mangler doesn't see can cause errors if the library names are mangled (e.g. `mylibrary.apiCall()` turning in to `mylibrary.A()`. To avoid mangling those names, you can pass a list of names to not mangle in the `reservedNames` plugin option. Alternatively computed or string syntax property accesses are never mangled, e.g. using `mylibrary["apiCall"]()` will not mangle `"apiCall"` and continue to work. (This is the same as how Google Closure Compiler handles external calls.)
 
 To avoid mangling DOM API calls used in a browser enviornment (e.g. `setAttribute`), this repo includes `domprops.json` based on the list from UglifyJS that you can pass to `reservedNames`.
 
@@ -62,24 +64,26 @@ You may also specify a `debugSuffix` option which adds a custom string in to the
 
 (Note: "mangled together" means sharing a name cache between scripts; currently this is not supported because I can't find a way to share objects between plugin calls (**TODO**). Instead there is a hack where it always uses the same name cache defined at the top level of the babel plugin.)
 
-### Name collisions with babel-plugin-minify-mangle-names
-Currently there is no integration with `babel-plugin-minify-mangle-names`, which only mangles local variable names. This could cause awkward name collision issues such as:
-```
-window.myGlobal = 1;
-function test(param) {
-    return param + myGlobal;
-};
-```
-mangling to:
-```
-window.A = 1;
-function test(A) {
-    return A + A;   // oops, doesn't reference myGlobal any more
-};
-```
-There are a few ways to avoid this, but the simplest is to ensure the two name manglers use different namespaces. To this end, the property mangler always starts mangled names with an uppercase character, with the intent that the name mangler is modified to always start mangled names with a lowercase character. This rules out name collisions between the two. It is possible to implement a more sophisticated analysis, but this could be very difficult to implement correctly.
+### All plugin options
 
-### Conflicts with other property transforms
+`reservedNames`
+Array of property names to not be mangled, e.g. "setAttribute", or custom external API names. See `domprops.json` for a default list to pass for scripts used in a browser context.
+
+`identifierPrefix`
+String to prefix all mangled names with. By default this is an empty string (so short names are chosen like `A`). For example pass `g_` and the name `A` will instead be mangled to `g_A`. This makes the mangling less effective at minifying the script, but can be useful for diagnosing name collision issues.
+
+`debug`
+Boolean to enable debug mode, which mangles names predictably and including the original name, e.g. `foo` -> `_$foo$_`.
+
+`debugSuffix`
+String of a suffix to use in debug mode. For example if set to `xyz`, then `foo` will instead mangle to `_$foo$xyz_`.
+
+## Conflicts with other plugins
 More than one Babili plugin transform string properties to identifiers, i.e. `o["foo"] -> o.foo`. If this is done before the property mangler sees it, it will be mangled anyway, even though it was written with the intent to not be mangled.
 
-Babel lacks a way to ensure any particular plugin runs first. The only way to ensure this is to run two passes, e.g. make two `transform` calls, the first to do property mangling only, and the second to do the remaining minification procedures. This also has the benefit that writing `o["foo"]` does not mangle "foo" and still outputs the shorter `o.foo`.
+In addition to that, `babel-plugin-minify-mangle-names` mangles local variable names. It makes sure the local variable names it chooses do not collide with global names. However this plugin does not check that mangled global names do not collide with local variable names. This is for two reasons:
+
+* it doesn't need to, as long as you run the property mangler first
+* if you mangle a number of separate scripts one after the other, it's not possible to choose global variable names that won't collide with local variables, because the mangler has to choose a name before it's seen all the local variable names. To solve this there would need to be an extra first-pass over all your scripts to collect all local variable names in use across all scripts; the Babel architecture doesn't really have a good way to do this.
+
+To fix these problems, you have to make two passes when using the property mangler. E.g. make two `transform` calls, the first to do property mangling only, and the second to do the remaining minification procedures. This ensures quoted property accesses are mangled as intended, and that global names don't collide with local names.
