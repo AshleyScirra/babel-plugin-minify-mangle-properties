@@ -8,24 +8,37 @@ let globalNameCache = {
 	seed: 0
 };
 
-// Mangled identifiers must begin with one of FIRST_CHARS, then any later chars can be any of NEXT_CHARS.
-const FIRST_CHARS = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"];
-const NEXT_CHARS = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"];
+// Mangled identifiers use characters from this array
+const USE_CHARS = [..."abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$"];
 let identifierPrefix = "";
+
+let hasInitialisedChars = false;
+
+function shuffleArray(array)
+{
+	for (let i = array.length - 1; i > 0; i--)
+	{
+		const j = Math.floor(Math.random() * (i + 1));
+		const temp = array[i];
+		array[i] = array[j];
+		array[j] = temp;
+	}
+	return array;
+}
 
 // Generate a new identifier from the given seed (which increments every time we want a new identifier).
 function generateIdentifierFromSeed(s)
 {
 	// generate first char
-	let s1 = s % FIRST_CHARS.length;
-	let ret = FIRST_CHARS[s1];
-	s = Math.floor((s - s1) / FIRST_CHARS.length);
+	let s1 = s % USE_CHARS.length;
+	let ret = USE_CHARS[s1];
+	s = Math.floor((s - s1) / USE_CHARS.length);
 	
 	while (s > 0)
 	{
-		let s2 = (s - 1) % NEXT_CHARS.length;
-		ret += NEXT_CHARS[s2];
-		s = Math.floor((s - (s2 + 1)) / NEXT_CHARS.length);
+		let s2 = (s - 1) % USE_CHARS.length;
+		ret = USE_CHARS[s2] + ret;		// ensures the change is always the last char, which probably helps gzip
+		s = Math.floor((s - (s2 + 1)) / USE_CHARS.length);
 	}
 	
 	return identifierPrefix + ret;
@@ -113,6 +126,17 @@ module.exports = function (_ref)
 				if (this.isDebugMode)
 					this.debugSuffix = state.opts.debugSuffix || "";
 				
+				// The randomise flag randomises the sequence of characters to iterate through. Note however that this can
+				// only be done once and must be used the same way across all calls, because changing the sequence will
+				// make later scripts mangle incompatibly with earlier scripts.
+				if (!hasInitialisedChars)
+				{
+					if (state.opts.randomise)
+						shuffleArray(USE_CHARS);
+					
+					hasInitialisedChars = true;
+				}
+				
 				// TODO: find a way for caller to provide
 				this.nameCache = globalNameCache;
 			},
@@ -197,4 +221,9 @@ module.exports = function (_ref)
 			}
 		}
 	}
+};
+
+module.exports.GetGlobalNameMap = function ()
+{
+	return globalNameCache.nameMap;
 };

@@ -78,6 +78,9 @@ Boolean to enable debug mode, which mangles names predictably and including the 
 `debugSuffix`
 String of a suffix to use in debug mode. For example if set to `xyz`, then `foo` will instead mangle to `_$foo$xyz_`.
 
+`randomise`
+Boolean to randomise the sequence of characters used when generating mangled names. Defaults to off. When enabled it makes the build non-deterministic, so building the same source twice will use completely different names each time (but not longer or shorter names, just different character choices). This can be a useful obfuscation property.
+
 ## Conflicts with other plugins
 More than one Babili plugin transform string properties to identifiers, i.e. `o["foo"] -> o.foo`. If this is done before the property mangler sees it, it will be mangled anyway, even though it was written with the intent to not be mangled.
 
