@@ -101,7 +101,7 @@ module.exports = function (_ref)
 			this.reservedNames = null;
 			
 			// List of terms to recognise as aliasing global scope. Used to avoid mangling "window" in "window.foo".
-			this.globalAliases = new Set(["window", "self", "global", "exports"]);
+			this.globalAliases = new Set(["window", "self", "global", "globalThis", "exports"]);
 			
 			// Use debug name mangling to diagnose mangling errors with a custom suffix.
 			this.isDebugMode = false;
